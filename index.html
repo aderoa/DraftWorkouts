@@ -123,6 +123,25 @@
   }
   .player-row:first-child { border-top: none; }
   .player-name { flex: 1; }
+  .rank-badge {
+    display: inline-block;
+    min-width: 36px;
+    text-align: center;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--accent);
+    background: var(--accent-light);
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-right: 0.6rem;
+    border: 1px solid rgba(180,83,9,0.18);
+  }
+  .rank-badge.unranked {
+    color: var(--text-muted);
+    background: var(--bg);
+    border-color: var(--border);
+  }
   .player-row .meta-tag {
     font-family: 'JetBrains Mono', ui-monospace, monospace;
     font-size: 0.62rem;
@@ -187,6 +206,8 @@
   // Column indices in Sheet4 (0-based, after our parser unifies multi-comma
   // quoted fields). These mirror the indices used by Roster Manager and the
   // Draft Predictor scripts.
+  const COL_MOCK_NAME      = 0;    // mock-draft player name (col A)
+  const COL_AGG_RANK       = 1;    // AGG RANK (Draft Predictor consensus rank)
   const COL_BIO_NAME       = 26;   // PLAYER (bio block)
   const COL_POSITION       = 36;
   const COL_PRE_DRAFT_TEAM = 37;
@@ -241,10 +262,16 @@
     return parts[i].toLowerCase();
   }
 
-  function sortByLastName(a, b) {
-    const la = lastName(a.player);
-    const lb = lastName(b.player);
-    return la.localeCompare(lb);
+  // Two-tier sort: ranked players come first (by rank ascending — #1 is best),
+  // then unranked players in alphabetical order by last name. This applies
+  // regardless of whether the rank is 1-60 or 60+ (a #70 still beats unranked).
+  function sortWorkouts(a, b) {
+    const aHas = typeof a.rank === 'number' && !isNaN(a.rank);
+    const bHas = typeof b.rank === 'number' && !isNaN(b.rank);
+    if (aHas && bHas) return a.rank - b.rank;
+    if (aHas) return -1;
+    if (bHas) return 1;
+    return lastName(a.player).localeCompare(lastName(b.player));
   }
 
   // ============================================================
@@ -266,16 +293,26 @@
       // Build a quick bio map keyed by name so we can attach metadata
       // (combine invitations, position, school) to each workout entry.
       const bioByName = {};
+      // Rank map: player name -> AGG RANK number from the Draft Predictor.
+      // Includes ALL ranked players (not just top-60), so a #70 prospect
+      // working out with a team will still sort above unranked workouts.
+      const rankByName = {};
       for (let i = 1; i < rows.length; i++) {
-        const name = (rows[i][COL_BIO_NAME] || '').trim();
-        if (!name) continue;
-        bioByName[name] = {
-          position: (rows[i][COL_POSITION] || '').trim(),
-          school: (rows[i][COL_PRE_DRAFT_TEAM] || '').trim(),
-          declared: (rows[i][COL_ENTERED_DRAFT] || '').trim().toUpperCase() === 'YES',
-          dc: (rows[i][COL_DRAFT_COMBINE] || '').trim().toUpperCase() === 'YES',
-          gl: (rows[i][COL_GL_COMBINE] || '').trim().toUpperCase() === 'YES',
-        };
+        const bioName = (rows[i][COL_BIO_NAME] || '').trim();
+        if (bioName) {
+          bioByName[bioName] = {
+            position: (rows[i][COL_POSITION] || '').trim(),
+            school: (rows[i][COL_PRE_DRAFT_TEAM] || '').trim(),
+            declared: (rows[i][COL_ENTERED_DRAFT] || '').trim().toUpperCase() === 'YES',
+            dc: (rows[i][COL_DRAFT_COMBINE] || '').trim().toUpperCase() === 'YES',
+            gl: (rows[i][COL_GL_COMBINE] || '').trim().toUpperCase() === 'YES',
+          };
+        }
+        const mockName = (rows[i][COL_MOCK_NAME] || '').trim();
+        const aggRank = parseInt((rows[i][COL_AGG_RANK] || '').trim());
+        if (mockName && !isNaN(aggRank) && aggRank > 0) {
+          rankByName[mockName] = aggRank;
+        }
       }
 
       // Walk the sheet again, picking up the workout pairs.
@@ -284,14 +321,16 @@
         const team = (rows[i][COL_WO_TEAM] || '').trim();
         if (!player || !team) continue;
         const bio = bioByName[player] || {};
+        const rank = rankByName[player];  // undefined if unranked
         if (!workoutsByTeam[team]) workoutsByTeam[team] = [];
-        workoutsByTeam[team].push({ player, ...bio });
+        workoutsByTeam[team].push({ player, rank, ...bio });
         totalWorkouts++;
       }
 
-      // Sort each team's list by player last name
+      // Sort each team's list: ranked first (by rank ascending), then
+      // unranked players alphabetically by last name.
       for (const t of Object.keys(workoutsByTeam)) {
-        workoutsByTeam[t].sort(sortByLastName);
+        workoutsByTeam[t].sort(sortWorkouts);
       }
       totalTeams = Object.keys(workoutsByTeam).length;
       lastFetchTime = new Date();
@@ -335,7 +374,11 @@
         if (p.dc) tags.push('<span class="meta-tag dc">DC</span>');
         if (p.gl) tags.push('<span class="meta-tag gl">GL</span>');
         const subtitle = [p.position, p.school].filter(Boolean).join(' · ');
+        const rankCell = (typeof p.rank === 'number')
+          ? `<span class="rank-badge">#${p.rank}</span>`
+          : `<span class="rank-badge unranked">—</span>`;
         html += `<div class="player-row">
+          ${rankCell}
           <span class="player-name"><strong>${escapeHTML(p.player)}</strong>${subtitle ? ` <span style="color:var(--text-muted);font-size:.78rem">— ${escapeHTML(subtitle)}</span>` : ''}</span>
           ${tags.join('')}
         </div>`;
