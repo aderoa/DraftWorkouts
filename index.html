@@ -407,26 +407,28 @@
     if (!teamNames.length) return '';
 
     let out = '<div class="dw-wrap" style="font-family:sans-serif;max-width:700px;margin:0 auto">\n';
+
+    // Intro paragraph + ranking-key clarification
+    out += '  <p style="margin:0 0 .8em">As is our yearly tradition, we\u2019re tracking every pre-draft workout for prospects looking to hear their names called in the July 23-24 NBA Draft. Compiling media reports, official releases, player announcements and our own intel, here\u2019s the list of every draft workout so far.</p>\n';
+    out += '  <p style="margin:0 0 1em;font-size:.9em;color:#666"><em>Rank number indicates the player\u2019s position in our most updated Draft Simulator. * UNR = Unranked.</em></p>\n';
+
     for (const team of teamNames) {
       const players = workoutsByTeam[team];
       out += `  <h3 style="margin:1.2em 0 .3em;font-size:1.1em;border-bottom:2px solid #b45309;padding-bottom:.15em">${escapeHTML(team)}</h3>\n`;
       out += `  <ul style="list-style:none;margin:.2em 0 .8em 0;padding:0">\n`;
       for (const p of players) {
         const subtitle = [p.position, p.school].filter(Boolean).join(', ');
-        // Build a fixed-width prefix using NBSP characters that always
-        // appear regardless of which CSS Presto preserves. Ranked players
-        // get "#NN" padded to 4 chars; unranked get 4 NBSPs.
-        let rankPrefix;
+        // Both ranked ("#46") and unranked ("UNR") get a 4-char monospace
+        // prefix so player names align across all rows.
+        let rankText;
         if (typeof p.rank === 'number') {
-          const rankText = '#' + p.rank;
-          // Pad with NBSPs to consistent 4-char width
-          const pad = '\u00A0'.repeat(Math.max(0, 4 - rankText.length));
-          rankPrefix = `<strong style="color:#b45309;font-family:monospace">${rankText}</strong>${pad}`;
+          rankText = '#' + p.rank;
         } else {
-          // 5 NBSPs to compensate for the slightly narrower NBSP characters
-          // vs. the bold "#NN" rank text in proportional Presto fonts
-          rankPrefix = '\u00A0\u00A0\u00A0\u00A0\u00A0';
+          rankText = 'UNR';
         }
+        const pad = '\u00A0'.repeat(Math.max(0, 4 - rankText.length));
+        const colour = (typeof p.rank === 'number') ? '#b45309' : '#999';
+        const rankPrefix = `<strong style="color:${colour};font-family:monospace">${rankText}${pad}</strong>`;
         out += `    <li style="margin:.15em 0">${rankPrefix}\u00A0\u00A0\u00A0${escapeHTML(p.player)}`;
         if (subtitle) out += ` <span style="color:#666;font-size:.9em">(${escapeHTML(subtitle)})</span>`;
         out += `</li>\n`;
