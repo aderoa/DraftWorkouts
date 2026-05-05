@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Draft Workouts · HoopsMatic</title>
+<style>
+  /* --- HoopsMatic Design System (light theme, DM Sans) --- */
+  :root {
+    --bg: #f5f5f7;
+    --surface: #ffffff;
+    --surface-hover: #f0f0f2;
+    --border: #d1d1d6;
+    --text: #1d1d1f;
+    --text-secondary: #6e6e73;
+    --text-muted: #8e8e93;
+    --accent: #b45309;
+    --accent-hover: #92400e;
+    --accent-light: rgba(180, 83, 9, 0.08);
+    --green: #16a34a;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    overflow-x: clip;
+  }
+  .container { max-width: 1100px; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
+
+  /* Header */
+  header {
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 1rem;
+  }
+  h1 { font-size: 1.5rem; margin: 0 0 0.25rem; font-weight: 700; }
+  .subtitle { color: var(--text-secondary); font-size: 0.9rem; margin: 0; }
+
+  /* Action bar */
+  .actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 1.5rem;
+  }
+  .btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 0.55rem 0.9rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.1s, border-color 0.1s;
+  }
+  .btn:hover { background: var(--surface-hover); border-color: var(--text-muted); }
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+  .btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+  .btn-success { background: var(--green) !important; color: #fff !important; border-color: var(--green) !important; }
+
+  .meta {
+    margin-left: auto;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+  }
+
+  /* Loading + empty states */
+  .state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--text-muted);
+    font-size: 0.95rem;
+  }
+  .state.error { color: #b91c1c; }
+
+  /* Workouts list */
+  .team-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    overflow: hidden;
+  }
+  .team-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    background: var(--accent-light);
+    border-bottom: 1px solid var(--border);
+    font-weight: 700;
+    font-size: 0.95rem;
+  }
+  .team-name { color: var(--accent); }
+  .team-count {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    background: var(--surface);
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+  }
+  .player-list { padding: 0.5rem 0; }
+  .player-row {
+    padding: 0.5rem 1rem;
+    display: flex;
+    align-items: center;
+    border-top: 1px solid var(--border);
+    font-size: 0.9rem;
+  }
+  .player-row:first-child { border-top: none; }
+  .player-name { flex: 1; }
+  .player-row .meta-tag {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.62rem;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 3px;
+    margin-left: 6px;
+    border: 1px solid;
+    letter-spacing: 0.04em;
+  }
+  .meta-tag.dc { color: #1d4ed8; background: rgba(59,130,246,0.12); border-color: rgba(59,130,246,0.3); }
+  .meta-tag.gl { color: #047857; background: rgba(16,185,129,0.12); border-color: rgba(16,185,129,0.3); }
+  .meta-tag.draft { color: var(--accent); background: var(--accent-light); border-color: rgba(180,83,9,0.25); }
+
+  /* Footer summary */
+  .summary {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+  }
+  .summary strong { color: var(--text); font-weight: 700; }
+
+  @media (max-width: 600px) {
+    h1 { font-size: 1.25rem; }
+    .container { padding: 1rem 0.75rem 3rem; }
+    .meta { width: 100%; margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>Draft Workouts</h1>
+    <p class="subtitle">Workouts scheduled with NBA teams · sourced from the prospect database · sorted by team, then by player last name</p>
+  </header>
+
+  <div class="actions">
+    <button class="btn btn-primary" id="btnCopyPresto">📷 Copy Presto Code</button>
+    <button class="btn" id="btnRefresh">↻ Refresh</button>
+    <span class="meta" id="metaInfo">Loading…</span>
+  </div>
+
+  <div id="content">
+    <div class="state">Loading workouts…</div>
+  </div>
+</div>
+
+<script>
+  // ============================================================
+  // Configuration
+  // ============================================================
+  // The Worker proxies the Sheet4 CSV at this endpoint — same source the
+  // Roster Manager and Draft Predictor use. Using the absolute URL means
+  // this page works whether it's deployed on hoopsmatic.com or as a
+  // GitHub Pages standalone.
+  const DATA_URL = 'https://hoopsmatic.com/api/rm-draft';
+
+  // Column indices in Sheet4 (0-based, after our parser unifies multi-comma
+  // quoted fields). These mirror the indices used by Roster Manager and the
+  // Draft Predictor scripts.
+  const COL_BIO_NAME       = 26;   // PLAYER (bio block)
+  const COL_POSITION       = 36;
+  const COL_PRE_DRAFT_TEAM = 37;
+  const COL_ENTERED_DRAFT  = 38;
+  const COL_DRAFT_COMBINE  = 39;
+  const COL_GL_COMBINE     = 40;
+  const COL_WO_PLAYER      = 42;   // AQ — player name in workout block
+  const COL_WO_TEAM        = 43;   // AR — team they're working out with
+
+  // ============================================================
+  // CSV parsing — handles quoted fields with embedded commas
+  // ============================================================
+  function parseCSV(text) {
+    const rows = [];
+    let cur = [''], inQ = false;
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (inQ) {
+        if (c === '"' && text[i + 1] === '"') { cur[cur.length - 1] += '"'; i++; }
+        else if (c === '"') inQ = false;
+        else cur[cur.length - 1] += c;
+      } else {
+        if (c === '"') inQ = true;
+        else if (c === ',') cur.push('');
+        else if (c === '\n') { rows.push(cur); cur = ['']; }
+        else if (c !== '\r') cur[cur.length - 1] += c;
+      }
+    }
+    if (cur.length > 1 || cur[0]) rows.push(cur);
+    return rows;
+  }
+
+  // ============================================================
+  // Data structures
+  // ============================================================
+  // Workouts grouped by team:  { teamName: [ { player, dc, gl, declared, position, school } ] }
+  let workoutsByTeam = {};
+  let totalWorkouts = 0;
+  let totalTeams = 0;
+  let lastFetchTime = null;
+
+  // ============================================================
+  // Sorting helpers
+  // ============================================================
+  function lastName(fullName) {
+    const parts = fullName.trim().split(/\s+/);
+    if (!parts.length) return '';
+    // Strip trailing suffixes like "Jr.", "III", "II", "Sr."
+    const suffixes = new Set(['Jr.', 'Jr', 'Sr.', 'Sr', 'II', 'III', 'IV']);
+    let i = parts.length - 1;
+    while (i > 0 && suffixes.has(parts[i])) i--;
+    return parts[i].toLowerCase();
+  }
+
+  function sortByLastName(a, b) {
+    const la = lastName(a.player);
+    const lb = lastName(b.player);
+    return la.localeCompare(lb);
+  }
+
+  // ============================================================
+  // Fetch + parse
+  // ============================================================
+  async function fetchWorkouts(forceRefresh = false) {
+    workoutsByTeam = {};
+    totalWorkouts = 0;
+    document.getElementById('content').innerHTML = '<div class="state">Loading workouts…</div>';
+    document.getElementById('metaInfo').textContent = 'Loading…';
+
+    try {
+      const url = forceRefresh ? `${DATA_URL}?nocache=1` : DATA_URL;
+      const r = await fetch(url, forceRefresh ? { cache: 'no-store' } : {});
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const text = await r.text();
+      const rows = parseCSV(text);
+
+      // Build a quick bio map keyed by name so we can attach metadata
+      // (combine invitations, position, school) to each workout entry.
+      const bioByName = {};
+      for (let i = 1; i < rows.length; i++) {
+        const name = (rows[i][COL_BIO_NAME] || '').trim();
+        if (!name) continue;
+        bioByName[name] = {
+          position: (rows[i][COL_POSITION] || '').trim(),
+          school: (rows[i][COL_PRE_DRAFT_TEAM] || '').trim(),
+          declared: (rows[i][COL_ENTERED_DRAFT] || '').trim().toUpperCase() === 'YES',
+          dc: (rows[i][COL_DRAFT_COMBINE] || '').trim().toUpperCase() === 'YES',
+          gl: (rows[i][COL_GL_COMBINE] || '').trim().toUpperCase() === 'YES',
+        };
+      }
+
+      // Walk the sheet again, picking up the workout pairs.
+      for (let i = 1; i < rows.length; i++) {
+        const player = (rows[i][COL_WO_PLAYER] || '').trim();
+        const team = (rows[i][COL_WO_TEAM] || '').trim();
+        if (!player || !team) continue;
+        const bio = bioByName[player] || {};
+        if (!workoutsByTeam[team]) workoutsByTeam[team] = [];
+        workoutsByTeam[team].push({ player, ...bio });
+        totalWorkouts++;
+      }
+
+      // Sort each team's list by player last name
+      for (const t of Object.keys(workoutsByTeam)) {
+        workoutsByTeam[t].sort(sortByLastName);
+      }
+      totalTeams = Object.keys(workoutsByTeam).length;
+      lastFetchTime = new Date();
+
+      render();
+    } catch (e) {
+      console.error('[Workouts] fetch failed:', e);
+      document.getElementById('content').innerHTML =
+        `<div class="state error">Failed to load workouts: ${e.message}</div>`;
+      document.getElementById('metaInfo').textContent = 'Error';
+    }
+  }
+
+  // ============================================================
+  // Render
+  // ============================================================
+  function render() {
+    const meta = document.getElementById('metaInfo');
+    meta.textContent = `${totalWorkouts} workouts · ${totalTeams} teams · updated ${lastFetchTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+
+    if (totalWorkouts === 0) {
+      document.getElementById('content').innerHTML =
+        '<div class="state">No workouts scheduled yet. Add rows to columns AQ (player) and AR (team) in Sheet4.</div>';
+      return;
+    }
+
+    // Teams alphabetical
+    const teamNames = Object.keys(workoutsByTeam).sort();
+    let html = '';
+    for (const team of teamNames) {
+      const players = workoutsByTeam[team];
+      html += `<section class="team-section">
+        <header class="team-header">
+          <span class="team-name">${escapeHTML(team)}</span>
+          <span class="team-count">${players.length} workout${players.length === 1 ? '' : 's'}</span>
+        </header>
+        <div class="player-list">`;
+      for (const p of players) {
+        const tags = [];
+        if (p.declared) tags.push('<span class="meta-tag draft">Declared</span>');
+        if (p.dc) tags.push('<span class="meta-tag dc">DC</span>');
+        if (p.gl) tags.push('<span class="meta-tag gl">GL</span>');
+        const subtitle = [p.position, p.school].filter(Boolean).join(' · ');
+        html += `<div class="player-row">
+          <span class="player-name"><strong>${escapeHTML(p.player)}</strong>${subtitle ? ` <span style="color:var(--text-muted);font-size:.78rem">— ${escapeHTML(subtitle)}</span>` : ''}</span>
+          ${tags.join('')}
+        </div>`;
+      }
+      html += `</div></section>`;
+    }
+    document.getElementById('content').innerHTML = html;
+  }
+
+  function escapeHTML(s) {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  // ============================================================
+  // Presto code generation
+  // ============================================================
+  // Plain HTML — team header + simple list under it. No table, no inline
+  // CSS classes that wouldn't survive Presto. Just a structure that's
+  // copy-pastable into a Presto post.
+  function generatePresto() {
+    const teamNames = Object.keys(workoutsByTeam).sort();
+    if (!teamNames.length) return '';
+
+    let out = '<div class="dw-wrap" style="font-family:sans-serif;max-width:700px;margin:0 auto">\n';
+    for (const team of teamNames) {
+      const players = workoutsByTeam[team];
+      out += `  <h3 style="margin:1.2em 0 .3em;font-size:1.1em;border-bottom:2px solid #b45309;padding-bottom:.15em">${escapeHTML(team)}</h3>\n`;
+      out += `  <ul style="margin:.2em 0 .8em 1.2em;padding:0">\n`;
+      for (const p of players) {
+        const subtitle = [p.position, p.school].filter(Boolean).join(', ');
+        out += `    <li style="margin:.15em 0">${escapeHTML(p.player)}`;
+        if (subtitle) out += ` <span style="color:#666;font-size:.9em">(${escapeHTML(subtitle)})</span>`;
+        out += `</li>\n`;
+      }
+      out += `  </ul>\n`;
+    }
+    out += '</div>';
+    return out;
+  }
+
+  function copyPresto() {
+    const code = generatePresto();
+    if (!code) {
+      flashButton(document.getElementById('btnCopyPresto'), 'Nothing to copy', false);
+      return;
+    }
+    const btn = document.getElementById('btnCopyPresto');
+    const orig = btn.textContent;
+
+    const blob = new Blob([code], { type: 'text/plain' });
+    if (navigator.clipboard && navigator.clipboard.write) {
+      navigator.clipboard.write([new ClipboardItem({ 'text/plain': blob })])
+        .then(() => flashButton(btn, '✓ Copied!', true))
+        .catch(() => fallbackCopy(code, btn, orig));
+    } else {
+      fallbackCopy(code, btn, orig);
+    }
+  }
+
+  function fallbackCopy(text, btn, orig) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+      document.execCommand('copy');
+      flashButton(btn, '✓ Copied!', true);
+    } catch (e) {
+      flashButton(btn, 'Copy failed', false);
+    }
+    document.body.removeChild(ta);
+  }
+
+  function flashButton(btn, msg, success) {
+    const orig = '📷 Copy Presto Code';
+    btn.textContent = msg;
+    if (success) btn.classList.add('btn-success');
+    setTimeout(() => {
+      btn.textContent = orig;
+      btn.classList.remove('btn-success');
+    }, 2000);
+  }
+
+  // ============================================================
+  // Wire up + boot
+  // ============================================================
+  document.getElementById('btnCopyPresto').addEventListener('click', copyPresto);
+  document.getElementById('btnRefresh').addEventListener('click', () => fetchWorkouts(true));
+
+  fetchWorkouts(false);
+</script>
+</body>
+</html>
