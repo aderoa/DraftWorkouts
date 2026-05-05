@@ -423,8 +423,9 @@
           const pad = '\u00A0'.repeat(Math.max(0, 4 - rankText.length));
           rankPrefix = `<strong style="color:#b45309;font-family:monospace">${rankText}</strong>${pad}`;
         } else {
-          // 4 NBSPs to match the ranked width
-          rankPrefix = '\u00A0\u00A0\u00A0\u00A0';
+          // 5 NBSPs to compensate for the slightly narrower NBSP characters
+          // vs. the bold "#NN" rank text in proportional Presto fonts
+          rankPrefix = '\u00A0\u00A0\u00A0\u00A0\u00A0';
         }
         out += `    <li style="margin:.15em 0">${rankPrefix}\u00A0\u00A0\u00A0${escapeHTML(p.player)}`;
         if (subtitle) out += ` <span style="color:#666;font-size:.9em">(${escapeHTML(subtitle)})</span>`;
