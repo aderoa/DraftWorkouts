@@ -413,17 +413,20 @@
       out += `  <ul style="list-style:none;margin:.2em 0 .8em 0;padding:0">\n`;
       for (const p of players) {
         const subtitle = [p.position, p.school].filter(Boolean).join(', ');
-        // Fixed-width rank prefix so player names align across rows. Ranked
-        // players show "#NN", unranked show non-breaking spaces of the same
-        // visual width inside an inline-block of fixed width — the actual
-        // characters don't matter; the inline-block's width is what aligns
-        // the text. Monospace font on the prefix keeps "#9" and "#46" the
-        // same width too.
-        const rankPrefix = (typeof p.rank === 'number')
-          ? `<strong style="color:#b45309">#${p.rank}</strong>`
-          : '';
-        const prefixCell = `<span style="display:inline-block;width:3em;font-family:monospace;text-align:left">${rankPrefix}</span>`;
-        out += `    <li style="margin:.15em 0">${prefixCell} ${escapeHTML(p.player)}`;
+        // Build a fixed-width prefix using NBSP characters that always
+        // appear regardless of which CSS Presto preserves. Ranked players
+        // get "#NN" padded to 4 chars; unranked get 4 NBSPs.
+        let rankPrefix;
+        if (typeof p.rank === 'number') {
+          const rankText = '#' + p.rank;
+          // Pad with NBSPs to consistent 4-char width
+          const pad = '\u00A0'.repeat(Math.max(0, 4 - rankText.length));
+          rankPrefix = `<strong style="color:#b45309;font-family:monospace">${rankText}</strong>${pad}`;
+        } else {
+          // 4 NBSPs to match the ranked width
+          rankPrefix = '\u00A0\u00A0\u00A0\u00A0';
+        }
+        out += `    <li style="margin:.15em 0">${rankPrefix}\u00A0\u00A0${escapeHTML(p.player)}`;
         if (subtitle) out += ` <span style="color:#666;font-size:.9em">(${escapeHTML(subtitle)})</span>`;
         out += `</li>\n`;
       }
