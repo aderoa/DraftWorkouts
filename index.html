@@ -410,10 +410,20 @@
     for (const team of teamNames) {
       const players = workoutsByTeam[team];
       out += `  <h3 style="margin:1.2em 0 .3em;font-size:1.1em;border-bottom:2px solid #b45309;padding-bottom:.15em">${escapeHTML(team)}</h3>\n`;
-      out += `  <ul style="margin:.2em 0 .8em 1.2em;padding:0">\n`;
+      out += `  <ul style="list-style:none;margin:.2em 0 .8em 0;padding:0">\n`;
       for (const p of players) {
         const subtitle = [p.position, p.school].filter(Boolean).join(', ');
-        out += `    <li style="margin:.15em 0">${escapeHTML(p.player)}`;
+        // Fixed-width rank prefix so player names align across rows. Ranked
+        // players show "#NN", unranked show non-breaking spaces of the same
+        // visual width inside an inline-block of fixed width — the actual
+        // characters don't matter; the inline-block's width is what aligns
+        // the text. Monospace font on the prefix keeps "#9" and "#46" the
+        // same width too.
+        const rankPrefix = (typeof p.rank === 'number')
+          ? `<strong style="color:#b45309">#${p.rank}</strong>`
+          : '';
+        const prefixCell = `<span style="display:inline-block;width:3em;font-family:monospace;text-align:left">${rankPrefix}</span>`;
+        out += `    <li style="margin:.15em 0">${prefixCell} ${escapeHTML(p.player)}`;
         if (subtitle) out += ` <span style="color:#666;font-size:.9em">(${escapeHTML(subtitle)})</span>`;
         out += `</li>\n`;
       }
