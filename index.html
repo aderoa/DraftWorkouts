@@ -209,6 +209,7 @@
   const COL_MOCK_NAME      = 0;    // mock-draft player name (col A)
   const COL_AGG_RANK       = 1;    // AGG RANK (Draft Predictor consensus rank)
   const COL_BIO_NAME       = 26;   // PLAYER (bio block)
+  const COL_AGE_TEXT       = 34;   // pre-formatted "X years and Y days"
   const COL_POSITION       = 36;
   const COL_PRE_DRAFT_TEAM = 37;
   const COL_ENTERED_DRAFT  = 38;
@@ -303,6 +304,7 @@
           bioByName[bioName] = {
             position: (rows[i][COL_POSITION] || '').trim(),
             school: (rows[i][COL_PRE_DRAFT_TEAM] || '').trim(),
+            age: (rows[i][COL_AGE_TEXT] || '').trim(),
             declared: (rows[i][COL_ENTERED_DRAFT] || '').trim().toUpperCase() === 'YES',
             dc: (rows[i][COL_DRAFT_COMBINE] || '').trim().toUpperCase() === 'YES',
             gl: (rows[i][COL_GL_COMBINE] || '').trim().toUpperCase() === 'YES',
@@ -373,7 +375,7 @@
         if (p.declared) tags.push('<span class="meta-tag draft">Declared</span>');
         if (p.dc) tags.push('<span class="meta-tag dc">DC</span>');
         if (p.gl) tags.push('<span class="meta-tag gl">GL</span>');
-        const subtitle = [p.position, p.school].filter(Boolean).join(' · ');
+        const subtitle = [p.position, p.school, p.age].filter(Boolean).join(' · ');
         const rankCell = (typeof p.rank === 'number')
           ? `<span class="rank-badge">#${p.rank}</span>`
           : `<span class="rank-badge unranked">—</span>`;
@@ -417,7 +419,7 @@
       out += `  <h3 style="margin:1.2em 0 .3em;font-size:1.1em;border-bottom:2px solid #b45309;padding-bottom:.15em">${escapeHTML(team)}</h3>\n`;
       out += `  <ul style="list-style:none;margin:.2em 0 .8em 0;padding:0">\n`;
       for (const p of players) {
-        const subtitle = [p.position, p.school].filter(Boolean).join(', ');
+        const subtitle = [p.position, p.school, p.age].filter(Boolean).join(', ');
         // Both ranked ("#46") and unranked ("UNR") get a 4-char monospace
         // prefix so player names align across all rows.
         let rankText;
