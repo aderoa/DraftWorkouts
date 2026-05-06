@@ -209,6 +209,7 @@
   const COL_MOCK_NAME      = 0;    // mock-draft player name (col A)
   const COL_AGG_RANK       = 1;    // AGG RANK (Draft Predictor consensus rank)
   const COL_BIO_NAME       = 26;   // PLAYER (bio block)
+  const COL_BIRTH_DATE     = 27;   // BIRTH DATE — empty when player has no DOB
   const COL_AGE_YEARS      = 32;   // pre-computed age years (e.g., 20)
   const COL_AGE_DAYS       = 33;   // pre-computed age extra days (e.g., 350)
   const COL_POSITION       = 36;
@@ -302,11 +303,16 @@
       for (let i = 1; i < rows.length; i++) {
         const bioName = (rows[i][COL_BIO_NAME] || '').trim();
         if (bioName) {
+          const birthDate = (rows[i][COL_BIRTH_DATE] || '').trim();
           const ageYears = (rows[i][COL_AGE_YEARS] || '').trim();
           const ageDays  = (rows[i][COL_AGE_DAYS]  || '').trim();
-          // Compact format "YY-DDD". Leave blank if either piece is missing
-          // (i.e., the player had no birth date in the source sheet).
-          const age = (ageYears && ageDays && !isNaN(parseInt(ageYears)) && !isNaN(parseInt(ageDays)))
+          // Compact format "YY-DDD". Only computed when the player has an
+          // actual BIRTH DATE — otherwise the years/days columns may hold
+          // garbage sentinel values (e.g., "126-126" when the formula sees
+          // an empty birth date).
+          const age = (birthDate
+            && ageYears && ageDays
+            && !isNaN(parseInt(ageYears)) && !isNaN(parseInt(ageDays)))
             ? `${ageYears}-${ageDays}`
             : '';
           bioByName[bioName] = {
