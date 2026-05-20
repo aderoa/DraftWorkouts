@@ -202,6 +202,9 @@
   // this page works whether it's deployed on hoopsmatic.com or as a
   // GitHub Pages standalone.
   const DATA_URL = 'https://hoopsmatic.com/api/rm-draft';
+  // Live cascade snapshot from Draft Predictor. Falls back to AGG RANK from
+  // Sheet4 col B if the snapshot is unavailable.
+  const SNAPSHOT_URL = 'https://hoopsmatic.com/api/draft-snapshot';
 
   // Column indices in Sheet4 (0-based, after our parser unifies multi-comma
   // quoted fields). These mirror the indices used by Roster Manager and the
@@ -288,10 +291,37 @@
 
     try {
       const url = forceRefresh ? `${DATA_URL}?nocache=1` : DATA_URL;
-      const r = await fetch(url, forceRefresh ? { cache: 'no-store' } : {});
+      const snapUrl = forceRefresh ? `${SNAPSHOT_URL}?nocache=1` : SNAPSHOT_URL;
+      // Fetch CSV + live cascade snapshot in parallel. Snapshot is optional —
+      // we silently fall back to AGG RANK from the CSV if it fails.
+      const [r, snapR] = await Promise.all([
+        fetch(url, forceRefresh ? { cache: 'no-store' } : {}),
+        fetch(snapUrl, forceRefresh ? { cache: 'no-store' } : {}).catch(() => null),
+      ]);
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const text = await r.text();
       const rows = parseCSV(text);
+
+      // Live pick map: player name → current cascade pick from Draft Predictor.
+      // Used to override the static AGG RANK from Sheet4. If the snapshot
+      // endpoint is down or the player isn't in the cascade (outside top-60),
+      // we leave the AGG RANK in place.
+      const livePickByName = {};
+      let snapshotTs = null;
+      if (snapR && snapR.ok) {
+        try {
+          const snap = await snapR.json();
+          snapshotTs = snap.ts || null;
+          const order = snap.order || {};
+          for (const pickStr in order) {
+            const entry = order[pickStr];
+            const pickN = parseInt(pickStr);
+            if (!pickN) continue;
+            const name = (entry && typeof entry === 'object') ? entry.player : entry;
+            if (name) livePickByName[name] = pickN;
+          }
+        } catch (e) { /* fall through to AGG RANK */ }
+      }
 
       // Build a quick bio map keyed by name so we can attach metadata
       // (combine invitations, position, school) to each workout entry.
@@ -337,7 +367,10 @@
         const team = (rows[i][COL_WO_TEAM] || '').trim();
         if (!player || !team) continue;
         const bio = bioByName[player] || {};
-        const rank = rankByName[player];  // undefined if unranked
+        // Prefer the live cascade pick; fall back to static AGG RANK.
+        const rank = (livePickByName[player] !== undefined)
+          ? livePickByName[player]
+          : rankByName[player];
         if (!workoutsByTeam[team]) workoutsByTeam[team] = [];
         workoutsByTeam[team].push({ player, rank, ...bio });
         totalWorkouts++;
