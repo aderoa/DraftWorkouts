@@ -474,9 +474,7 @@
     out += '  <p style="margin:0 0 1em;font-size:.9em;color:#666"><em>Rank number indicates the player\u2019s position in our most updated Draft Simulator. * UNR = Unranked.</em></p>\n';
 
     for (const team of teamNames) {
-      // Only include players who attended the Draft Combine (dc flag).
-      const players = workoutsByTeam[team].filter(p => p.dc);
-      if (!players.length) continue;  // skip teams with no combine attendees
+      const players = workoutsByTeam[team];
       out += `  <h3 style="margin:1.2em 0 .3em;font-size:1.1em;border-bottom:2px solid #b45309;padding-bottom:.15em">${escapeHTML(team)}</h3>\n`;
       out += `  <ul style="list-style:none;margin:.2em 0 .8em 0;padding:0">\n`;
       for (const p of players) {
@@ -492,10 +490,16 @@
         const pad = '\u00A0'.repeat(Math.max(0, 4 - rankText.length));
         const colour = (typeof p.rank === 'number') ? '#b45309' : '#999';
         const rankPrefix = `<strong style="color:${colour};font-family:monospace">${rankText}${pad}</strong>`;
-        // Link the player name to their Prospect Database entry.
-        const slug = prospectSlug(p.player);
-        const playerLink = `<a href="https://hoopsmatic.com/prospect-database?player=${slug}" style="color:#1a4d8f;text-decoration:none">${escapeHTML(p.player)}</a>`;
-        out += `    <li style="margin:.15em 0">${rankPrefix}\u00A0\u00A0\u00A0${playerLink}`;
+        // Combine attendees link to their Prospect Database entry;
+        // non-combine players appear as plain text.
+        let playerCell;
+        if (p.dc) {
+          const slug = prospectSlug(p.player);
+          playerCell = `<a href="https://hoopsmatic.com/prospect-database?player=${slug}" style="color:#1a4d8f;text-decoration:none">${escapeHTML(p.player)}</a>`;
+        } else {
+          playerCell = escapeHTML(p.player);
+        }
+        out += `    <li style="margin:.15em 0">${rankPrefix}\u00A0\u00A0\u00A0${playerCell}`;
         if (subtitle) out += ` <span style="color:#666;font-size:.9em">(${escapeHTML(subtitle)})</span>`;
         out += `</li>\n`;
       }
