@@ -474,7 +474,9 @@
     out += '  <p style="margin:0 0 1em;font-size:.9em;color:#666"><em>Rank number indicates the player\u2019s position in our most updated Draft Simulator. * UNR = Unranked.</em></p>\n';
 
     for (const team of teamNames) {
-      const players = workoutsByTeam[team];
+      // Only include players who attended the Draft Combine (dc flag).
+      const players = workoutsByTeam[team].filter(p => p.dc);
+      if (!players.length) continue;  // skip teams with no combine attendees
       out += `  <h3 style="margin:1.2em 0 .3em;font-size:1.1em;border-bottom:2px solid #b45309;padding-bottom:.15em">${escapeHTML(team)}</h3>\n`;
       out += `  <ul style="list-style:none;margin:.2em 0 .8em 0;padding:0">\n`;
       for (const p of players) {
