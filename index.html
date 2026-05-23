@@ -316,19 +316,28 @@
       const text = await r.text();
       const rows = parseCSV(text);
 
-      // Build each team's 2026 draft picks (pick numbers in ascending order)
-      // from CSV cols 15 (pick number) and 16 (owning team, full name) — the
-      // same source the Draft Predictor uses for pick ownership. Formats with
-      // ordinal suffixes, e.g. "5th, 32nd".
+      // Build each team's 2026 draft picks from CSV cols 15 (pick number) and
+      // 16 (owning team ABBREVIATION). Map abbreviations to the full team names
+      // used in the workout headers, then format with ordinal suffixes.
       picks2026ByTeam = {};
       {
         const COL_PICK_NUM = 15;   // P — 2026 pick number
-        const COL_PICK_TEAM = 16;  // Q — team owning that pick (full name)
+        const COL_PICK_TEAM = 16;  // Q — team owning that pick (abbreviation)
+        // NBA abbreviation → full team name (matches workout-header naming).
+        const ABBREV_TO_TEAM = {
+          ATL:'Atlanta', BOS:'Boston', BKN:'Brooklyn', CHA:'Charlotte', CHI:'Chicago',
+          CLE:'Cleveland', DAL:'Dallas', DEN:'Denver', DET:'Detroit', GSW:'Golden State',
+          HOU:'Houston', IND:'Indiana', LAC:'LA Clippers', LAL:'LA Lakers', MEM:'Memphis',
+          MIA:'Miami', MIL:'Milwaukee', MIN:'Minnesota', NOP:'New Orleans', NYK:'New York',
+          OKC:'Oklahoma City', ORL:'Orlando', PHI:'Philadelphia', PHX:'Phoenix', POR:'Portland',
+          SAC:'Sacramento', SAS:'San Antonio', TOR:'Toronto', UTA:'Utah', WAS:'Washington'
+        };
         const pickListByTeam = {};
         for (let i = 1; i < rows.length; i++) {
           const pickN = parseInt((rows[i][COL_PICK_NUM] || '').trim());
-          const owner = (rows[i][COL_PICK_TEAM] || '').trim();
-          if (!pickN || !owner) continue;
+          const abbr = (rows[i][COL_PICK_TEAM] || '').trim().toUpperCase();
+          if (!pickN || !abbr) continue;
+          const owner = ABBREV_TO_TEAM[abbr] || abbr;  // fall back to abbr if unmapped
           if (!pickListByTeam[owner]) pickListByTeam[owner] = [];
           pickListByTeam[owner].push(pickN);
         }
