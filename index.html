@@ -217,9 +217,6 @@
   // Live cascade snapshot from Draft Predictor. Falls back to AGG RANK from
   // Sheet4 col B if the snapshot is unavailable.
   const SNAPSHOT_URL = 'https://hoopsmatic.com/api/draft-snapshot';
-  // Pick ownership endpoint — used to annotate each team header with the
-  // first/second-round picks they hold in the 2026 draft.
-  const PICKS_URL = 'https://hoopsmatic.com/api/pick-ownership';
 
   // Column indices in Sheet4 (0-based, after our parser unifies multi-comma
   // quoted fields). These mirror the indices used by Roster Manager and the
@@ -308,42 +305,41 @@
     try {
       const url = forceRefresh ? `${DATA_URL}?nocache=1` : DATA_URL;
       const snapUrl = forceRefresh ? `${SNAPSHOT_URL}?nocache=1` : SNAPSHOT_URL;
-      const picksUrl = forceRefresh ? `${PICKS_URL}?nocache=1` : PICKS_URL;
-      // Fetch CSV + live cascade snapshot + pick ownership in parallel. The
-      // snapshot and pick data are both optional — the page degrades
-      // gracefully (AGG RANK fallback / no pick annotations) if either fails.
-      const [r, snapR, picksR] = await Promise.all([
+      // Fetch CSV + live cascade snapshot in parallel. The snapshot is optional
+      // — we fall back to AGG RANK from the CSV if it fails. Pick ownership is
+      // read directly from CSV cols 15-16 (no separate request needed).
+      const [r, snapR] = await Promise.all([
         fetch(url, forceRefresh ? { cache: 'no-store' } : {}),
         fetch(snapUrl, forceRefresh ? { cache: 'no-store' } : {}).catch(() => null),
-        fetch(picksUrl, forceRefresh ? { cache: 'no-store' } : {}).catch(() => null),
       ]);
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const text = await r.text();
       const rows = parseCSV(text);
 
-      // Pick ownership for 2026, keyed by team name. Builds a short summary
-      // string per team (e.g. "2026: 2\u00d7 R1, 1\u00d7 R2"). Falls back silently
-      // if the endpoint is unavailable.
+      // Build each team's 2026 draft picks (pick numbers in ascending order)
+      // from CSV cols 15 (pick number) and 16 (owning team, full name) — the
+      // same source the Draft Predictor uses for pick ownership. Formats with
+      // ordinal suffixes, e.g. "5th, 32nd".
       picks2026ByTeam = {};
-      if (picksR && picksR.ok) {
-        try {
-          const pj = await picksR.json();
-          const own = pj.ownership || {};
-          for (const teamKey in own) {
-            const list = own[teamKey] || [];
-            let r1 = 0, r2 = 0;
-            for (const pk of list) {
-              if (String(pk.year).trim() !== '2026') continue;
-              const rd = String(pk.round).trim();
-              if (rd === '1' || rd.toUpperCase() === 'R1') r1++;
-              else if (rd === '2' || rd.toUpperCase() === 'R2') r2++;
-            }
-            const parts = [];
-            if (r1) parts.push(r1 + '\u00d7 R1');
-            if (r2) parts.push(r2 + '\u00d7 R2');
-            if (parts.length) picks2026ByTeam[teamKey] = parts.join(', ');
-          }
-        } catch (e) { /* no pick annotations */ }
+      {
+        const COL_PICK_NUM = 15;   // P — 2026 pick number
+        const COL_PICK_TEAM = 16;  // Q — team owning that pick (full name)
+        const pickListByTeam = {};
+        for (let i = 1; i < rows.length; i++) {
+          const pickN = parseInt((rows[i][COL_PICK_NUM] || '').trim());
+          const owner = (rows[i][COL_PICK_TEAM] || '').trim();
+          if (!pickN || !owner) continue;
+          if (!pickListByTeam[owner]) pickListByTeam[owner] = [];
+          pickListByTeam[owner].push(pickN);
+        }
+        const ordinal = (n) => {
+          const s = ['th', 'st', 'nd', 'rd'], v = n % 100;
+          return n + (s[(v - 20) % 10] || s[v] || s[0]);
+        };
+        for (const team in pickListByTeam) {
+          const picks = pickListByTeam[team].sort((a, b) => a - b);
+          picks2026ByTeam[team] = picks.map(ordinal).join(', ');
+        }
       }
 
       // Live pick map: player name → current cascade pick from Draft Predictor.
@@ -455,7 +451,7 @@
     let html = '';
     for (const team of teamNames) {
       const players = workoutsByTeam[team];
-      const picksLabel = picks2026ByTeam[team] ? ` <span class="team-picks">2026: ${escapeHTML(picks2026ByTeam[team])}</span>` : '';
+      const picksLabel = picks2026ByTeam[team] ? ` <span class="team-picks">2026 picks: ${escapeHTML(picks2026ByTeam[team])}</span>` : '';
       html += `<section class="team-section">
         <header class="team-header">
           <span class="team-name">${escapeHTML(team)}</span>${picksLabel}
@@ -520,7 +516,7 @@
 
     for (const team of teamNames) {
       const players = workoutsByTeam[team];
-      const picksNote = picks2026ByTeam[team] ? ` <span style="font-size:.7em;color:#666;font-weight:normal">(2026: ${escapeHTML(picks2026ByTeam[team])})</span>` : '';
+      const picksNote = picks2026ByTeam[team] ? ` <span style="font-size:.7em;color:#666;font-weight:normal">(2026 picks: ${escapeHTML(picks2026ByTeam[team])})</span>` : '';
       out += `  <h3 style="margin:1.2em 0 .3em;font-size:1.1em;border-bottom:2px solid #b45309;padding-bottom:.15em">${escapeHTML(team)}${picksNote}</h3>\n`;
       out += `  <ul style="list-style:none;margin:.2em 0 .8em 0;padding:0">\n`;
       for (const p of players) {
